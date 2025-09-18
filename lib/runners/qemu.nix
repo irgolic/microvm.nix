@@ -55,8 +55,7 @@ let
 
   inherit (microvmConfig) hostName vcpu mem balloon initialBalloonMem deflateOnOOM hotplugMem hotpluggedMem user interfaces shares socket forwardPorts devices vsock graphics storeOnDisk kernel initrdPath storeDisk credentialFiles;
   inherit (microvmConfig.qemu) machine extraArgs serialConsole;
-
-
+  
   volumes = withDriveLetters microvmConfig;
 
   requireUsb =
@@ -88,7 +87,8 @@ let
     graphics.enable ||
     (! lib.hasPrefix "microvm" machine) ||
     shares != [] ||
-    pciInDevices;
+    pciInDevices ||
+    useHotPlugMemory;
 
   machineOpts =
     if microvmConfig.qemu.machineOpts != null
@@ -166,6 +166,15 @@ let
   systemdCredentialStrings = lib.mapAttrsToList (name: path: "name=opt/io.systemd.credentials/${name},file=${path}" ) credentialFiles;
   fwCfgOptions = systemdCredentialStrings;
 
+  useHotPlugMemory = hotplugMem > 0;
+  # virtio-mem memory is always "plugged" memory, never base memory
+  # so -m should only ever include the base memory allocation
+  memoryConfig = if useHotPlugMemory 
+    then "${toString mem},maxmem=${toString (mem + hotplugMem)}M"
+    else toString mem;
+  defaultBlockSize = if system == "x86_64-linux" then "2M" else "4M";
+  blockSize = microvmConfig.qemu.virtioMemBlockSize or defaultBlockSize;
+
 in
 lib.warnIf (mem == 2048) ''
   QEMU hangs if memory is exactly 2GB
@@ -173,20 +182,18 @@ lib.warnIf (mem == 2048) ''
   <https://github.com/microvm-nix/microvm.nix/issues/171>
 ''
 {
-  inherit tapMultiQueue;
+  inherit tapMultiQueue useHotPlugMemory;
 
   command = if initialBalloonMem != 0
   then throw "qemu does not support initialBalloonMem"
-  else if hotplugMem != 0
-  then throw "qemu does not support hotplugMem"
-  else if hotpluggedMem != 0
-  then throw "qemu does not support hotpluggedMem"
+  else if useHotPlugMemory && !(system == "x86_64-linux" || system == "aarch64-linux")
+  then throw "qemu virtio-mem hotplug memory is only supported on x86_64-linux and aarch64-linux"
   else lib.escapeShellArgs (
     [
       "${qemu}/bin/qemu-system-${arch}"
       "-name" hostName
       "-M" machineConfig
-      "-m" (toString mem)
+      "-m" memoryConfig
       "-smp" (toString vcpu)
       "-nodefaults" "-no-user-config"
       # qemu just hangs after shutdown, allow to exit by rebooting
@@ -213,6 +220,10 @@ lib.warnIf (mem == 2048) ''
     ] ++
     lib.optionals (system == "aarch64-linux") [
       "-append" "${kernelConsole} reboot=t panic=-1 ${builtins.unsafeDiscardStringContext (toString microvmConfig.kernelParams)}"
+    ] ++
+    lib.optionals useHotPlugMemory [
+      "-object" "memory-backend-ram,id=vmem0,size=${toString hotplugMem}M"
+      "-device" "virtio-mem-${devType},id=vm0,memdev=vmem0,requested-size=${toString hotpluggedMem}M"
     ] ++
     lib.optionals storeOnDisk [
       "-drive" "id=store,format=raw,read-only=on,file=${storeDisk},if=none,aio=${aioEngine}"
