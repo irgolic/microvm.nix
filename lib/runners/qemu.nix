@@ -188,6 +188,8 @@ lib.warnIf (mem == 2048) ''
   then throw "qemu does not support initialBalloonMem"
   else if useHotPlugMemory && !(system == "x86_64-linux" || system == "aarch64-linux")
   then throw "qemu virtio-mem hotplug memory is only supported on x86_64-linux and aarch64-linux"
+  else if useHotPlugMemory && shares != []
+  then throw "qemu virtio-mem is not currently supported with virtiofs/9p shares (NUMA conflict)"
   else lib.escapeShellArgs (
     [
       "${qemu}/bin/qemu-system-${arch}"
