@@ -221,16 +221,10 @@ lib.warnIf (mem == 2048) ''
     lib.optionals (system == "aarch64-linux") [
       "-append" "${kernelConsole} reboot=t panic=-1 ${builtins.unsafeDiscardStringContext (toString microvmConfig.kernelParams)}"
     ] ++
-    lib.optionals useHotPlugMemory ([
-      "-object" "memory-backend-ram,id=vmem0,size=${toString hotplugMem}M"
-    ] ++ (if shares != [] then [
-      # With NUMA, we need to specify memaddr to avoid conflicts
-      # Place virtio-mem after regular RAM + buffer for reserved regions
-      "-device" "virtio-mem-${devType},id=vm0,memdev=vmem0,node=0,memaddr=0x${lib.toHexString ((mem + 256) * 1024 * 1024)},requested-size=${toString hotpluggedMem}M"
-    ] else [
-      # Without NUMA, let QEMU auto-assign the address
-      "-device" "virtio-mem-${devType},id=vm0,memdev=vmem0,requested-size=${toString hotpluggedMem}M"
-    ])) ++
+    lib.optionals useHotPlugMemory [
+      "-object" "memory-backend-ram,id=vmem0,size=${toString hotplugMem}M,reserve=off"
+      "-device" "virtio-mem-${devType},id=vm0,memdev=vmem0${lib.optionalString (shares != []) ",node=0"},requested-size=${toString hotpluggedMem}M"
+    ] ++
     lib.optionals storeOnDisk [
       "-drive" "id=store,format=raw,read-only=on,file=${storeDisk},if=none,aio=${aioEngine}"
       "-device" "virtio-blk-${devType},drive=store${lib.optionalString (devType == "pci") ",disable-legacy=on"}"
