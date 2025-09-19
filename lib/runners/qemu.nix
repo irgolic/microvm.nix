@@ -329,8 +329,9 @@ lib.warnIf (mem == 2048) ''
     ]
     ++
     lib.optionals useHotPlugMemory ([
+      "-numa" "node"
       "-object" "${if (shares != []) then "memory-backend-memfd" else "memory-backend-ram"},id=vmem0,size=${toString hotplugMem}M,reserve=off,prealloc=off${lib.optionalString (shares != []) ",share=on"}"
-      "-device" "virtio-mem-${devType},id=vm0,memdev=vmem0${lib.optionalString (shares != []) ",node=0,dynamic-memslots=off"},requested-size=${toString hotpluggedMem}M,prealloc=on"
+      "-device" "virtio-mem-${devType},id=vm0,memdev=vmem0,node=${if (shares != []) then "1" else "0"}${lib.optionalString (shares != []) ",dynamic-memslots=off"},requested-size=${toString hotpluggedMem}M,prealloc=on"
     ]) ++
     extraArgs
   )
