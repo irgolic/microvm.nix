@@ -223,7 +223,7 @@ lib.warnIf (mem == 2048) ''
     ] ++
     lib.optionals useHotPlugMemory [
       "-object" "memory-backend-ram,id=vmem0,size=${toString hotplugMem}M,reserve=off"
-      "-device" "virtio-mem-${devType},id=vm0,memdev=vmem0${lib.optionalString (shares != []) ",node=0"},requested-size=${toString hotpluggedMem}M"
+      "-device" "virtio-mem-${devType},id=vm0,memdev=vmem0${lib.optionalString (shares != []) ",node=0,dynamic-memslots=off"},requested-size=${toString hotpluggedMem}M"
     ] ++
     lib.optionals storeOnDisk [
       "-drive" "id=store,format=raw,read-only=on,file=${storeDisk},if=none,aio=${aioEngine}"
