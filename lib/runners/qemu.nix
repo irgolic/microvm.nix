@@ -170,7 +170,7 @@ let
   # virtio-mem memory is always "plugged" memory, never base memory
   # so -m should only ever include the base memory allocation
   memoryConfig = if useHotPlugMemory 
-    then "${toString mem},maxmem=${toString (mem + hotplugMem)}M"
+    then "${toString mem}M,maxmem=${toString (mem + hotplugMem)}M"
     else toString mem;
   defaultBlockSize = if system == "x86_64-linux" then "2M" else "4M";
   blockSize = microvmConfig.qemu.virtioMemBlockSize or defaultBlockSize;
