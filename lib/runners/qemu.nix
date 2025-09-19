@@ -328,10 +328,10 @@ lib.warnIf (mem == 2048) ''
       "vhost-vsock-${devType},guest-cid=${toString vsock.cid}"
     ]
     ++
-    lib.optionals useHotPlugMemory [
-      "-object" "memory-backend-ram,id=vmem0,size=${toString hotplugMem}M,reserve=off"
-      "-device" "virtio-mem-${devType},id=vm0,memdev=vmem0${lib.optionalString (shares != []) ",node=0,dynamic-memslots=off"},requested-size=${toString hotpluggedMem}M"
-    ] ++
+    lib.optionals useHotPlugMemory ([
+      "-object" "${if (shares != []) then "memory-backend-memfd" else "memory-backend-ram"},id=vmem0,size=${toString hotplugMem}M,reserve=off,prealloc=off${lib.optionalString (shares != []) ",share=on"}"
+      "-device" "virtio-mem-${devType},id=vm0,memdev=vmem0${lib.optionalString (shares != []) ",node=0,dynamic-memslots=off"},requested-size=${toString hotpluggedMem}M,prealloc=on"
+    ]) ++
     extraArgs
   )
   + " " + # Move vfio-pci outside of
