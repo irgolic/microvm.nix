@@ -221,10 +221,6 @@ lib.warnIf (mem == 2048) ''
     lib.optionals (system == "aarch64-linux") [
       "-append" "${kernelConsole} reboot=t panic=-1 ${builtins.unsafeDiscardStringContext (toString microvmConfig.kernelParams)}"
     ] ++
-    lib.optionals useHotPlugMemory [
-      "-object" "memory-backend-ram,id=vmem0,size=${toString hotplugMem}M,reserve=off"
-      "-device" "virtio-mem-${devType},id=vm0,memdev=vmem0${lib.optionalString (shares != []) ",node=0,dynamic-memslots=off"},requested-size=${toString hotpluggedMem}M"
-    ] ++
     lib.optionals storeOnDisk [
       "-drive" "id=store,format=raw,read-only=on,file=${storeDisk},if=none,aio=${aioEngine}"
       "-device" "virtio-blk-${devType},drive=store${lib.optionalString (devType == "pci") ",disable-legacy=on"}"
@@ -332,6 +328,10 @@ lib.warnIf (mem == 2048) ''
       "vhost-vsock-${devType},guest-cid=${toString vsock.cid}"
     ]
     ++
+    lib.optionals useHotPlugMemory [
+      "-object" "memory-backend-ram,id=vmem0,size=${toString hotplugMem}M,reserve=off"
+      "-device" "virtio-mem-${devType},id=vm0,memdev=vmem0${lib.optionalString (shares != []) ",node=0,dynamic-memslots=off"},requested-size=${toString hotpluggedMem}M"
+    ] ++
     extraArgs
   )
   + " " + # Move vfio-pci outside of
